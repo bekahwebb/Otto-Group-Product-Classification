@@ -1,0 +1,232 @@
+
+R version 4.3.3 (2024-02-29) -- "Angel Food Cake"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> library(tidyverse)
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+> library(DataExplorer)
+> library(vroom)
+
+Attaching package: ‘vroom’
+
+The following objects are masked from ‘package:readr’:
+
+    as.col_spec, col_character, col_date, col_datetime, col_double,
+    col_factor, col_guess, col_integer, col_logical, col_number,
+    col_skip, col_time, cols, cols_condense, cols_only, date_names,
+    date_names_lang, date_names_langs, default_locale, fwf_cols,
+    fwf_empty, fwf_positions, fwf_widths, locale, output_column,
+    problems, spec
+
+> library(ggplot2)
+> library(tidyverse)
+> library(patchwork)
+> library(readr)
+> library(GGally)
+Registered S3 method overwritten by 'GGally':
+  method from   
+  +.gg   ggplot2
+> library(poissonreg)
+Loading required package: parsnip
+> library(recipes)
+
+Attaching package: ‘recipes’
+
+The following object is masked from ‘package:stringr’:
+
+    fixed
+
+The following object is masked from ‘package:stats’:
+
+    step
+
+> library(rsample)
+> library(magrittr)
+
+Attaching package: ‘magrittr’
+
+The following object is masked from ‘package:purrr’:
+
+    set_names
+
+The following object is masked from ‘package:tidyr’:
+
+    extract
+
+> library(tidymodels)
+── Attaching packages ────────────────────────────────────── tidymodels 1.2.0 ──
+✔ broom        1.0.7     ✔ tune         1.2.1
+✔ dials        1.3.0     ✔ workflows    1.1.4
+✔ infer        1.0.7     ✔ workflowsets 1.1.0
+✔ modeldata    1.4.0     ✔ yardstick    1.3.1
+── Conflicts ───────────────────────────────────────── tidymodels_conflicts() ──
+✖ scales::discard()     masks purrr::discard()
+✖ magrittr::extract()   masks tidyr::extract()
+✖ dplyr::filter()       masks stats::filter()
+✖ recipes::fixed()      masks stringr::fixed()
+✖ dplyr::lag()          masks stats::lag()
+✖ magrittr::set_names() masks purrr::set_names()
+✖ yardstick::spec()     masks vroom::spec(), readr::spec()
+✖ recipes::step()       masks stats::step()
+• Use suppressPackageStartupMessages() to eliminate package startup messages
+> library(lubridate)
+> library(poissonreg) #if you want to do penalized, poisson regression
+> library(rpart)
+
+Attaching package: ‘rpart’
+
+The following object is masked from ‘package:dials’:
+
+    prune
+
+> library(ranger)
+> library(stacks) # you need this library to create a stacked model
+> library(embed) # for target encoding
+> library(ggmosaic)
+
+Attaching package: ‘ggmosaic’
+
+The following object is masked from ‘package:GGally’:
+
+    happy
+
+> library('themis')
+> 
+> amazon_test <- vroom("./test.csv")
+Rows: 58921 Columns: 10
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+dbl (10): id, RESOURCE, MGR_ID, ROLE_ROLLUP_1, ROLE_ROLLUP_2, ROLE_DEPTNAME,...
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+> 
+> amazon_train <- vroom("./train.csv")
+Rows: 32769 Columns: 10
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+dbl (10): ACTION, RESOURCE, MGR_ID, ROLE_ROLLUP_1, ROLE_ROLLUP_2, ROLE_DEPTN...
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+> 
+> 
+> # turn ACTION into a factor
+> amazon_train$ACTION <- as.factor(amazon_train$ACTION)
+> 
+> #my recipe
+> # Feature Engineering
+> sweet_recipe <- recipe(ACTION~., data=amazon_train) %>%
++   step_mutate_at(all_numeric_predictors(), fn = factor) %>% # turn all numeric features into factors
++   step_other(all_nominal_predictors(), threshold = .001) %>% # combines rare categories that occur less often
++   step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION))%>% #target encoding
++   step_normalize(all_predictors())
+>   # step_smote(all_outcomes(), neighbors=3)
+>   # 
+> 
+> # turn ACTION into a factor
+> amazon_train$ACTION <- as.factor(amazon_train$ACTION)
+> rf_model <- rand_forest(mtry = tune(),
++                       min_n=tune(),
++                       trees=850) %>%
++ set_engine("ranger") %>%
++ set_mode("classification")
+> 
+> ## Create a workflow with model & recipe
+> 
+> rf_wf <- workflow() %>%
++   add_recipe(sweet_recipe) %>%
++   add_model(rf_model)
+> 
+> ## Set up grid of tuning values
+> tuning_grid <- grid_regular(mtry(range = c(1, 10)),
++                             min_n(),
++                             levels = 3) 
+> 
+> ## Set up K-fold CV
+> folds <- vfold_cv(amazon_train, v = 5, repeats=1)
+> 
+> ## Run the CV
+> CV_results <- rf_wf %>%
++   tune_grid(resamples=folds,
++             grid=tuning_grid,
++             metrics=metric_set(roc_auc, f_meas, sens, recall, spec,
++                                precision, accuracy)) 
+→ A | warning: 10 columns were requested but there were 9 predictors in the data. 9 will be used.
+There were issues with some computations   A: x1
+There were issues with some computations   A: x2
+There were issues with some computations   A: x3
+There were issues with some computations   A: x4
+There were issues with some computations   A: x5
+There were issues with some computations   A: x6
+There were issues with some computations   A: x7
+There were issues with some computations   A: x8
+There were issues with some computations   A: x9
+There were issues with some computations   A: x10
+There were issues with some computations   A: x11
+There were issues with some computations   A: x12
+There were issues with some computations   A: x13
+There were issues with some computations   A: x14
+There were issues with some computations   A: x15
+There were issues with some computations   A: x15
+
+> 
+> ## Find best tuning parameters
+> bestTune <- CV_results %>%
++   select_best(metric="roc_auc")
+> 
+> ## Finalize workflow and predict
+> final_wf <-
++   rf_wf %>%
++   finalize_workflow(bestTune) %>%
++   fit(data=amazon_train)
+> 
+> ## Predict
+> rf_amazon_predictions <- final_wf %>%
++   predict(new_data =amazon_test, type="prob")
+> 
+> 
+> ## Format the Predictions for Submission to Kaggle
+> rf_kaggle_submission <- rf_amazon_predictions%>%
++   rename(ACTION=.pred_1) %>%
++   select(ACTION) %>%
++   bind_cols(., amazon_test) %>% #Bind predictions with test data
++   select(id, ACTION)  #keep Id, ACTION for submission
+> 
+> 
+> ## Write out the file
+> vroom_write(x=rf_kaggle_submission, file="rfPreds.csv", delim=",")
+> #public score .88523 private score .87370, it took 486 seconds or about 8 minutes to run on batch
+> #try removing pca and then perform step smote.  It took 26 min. on batch.
+> # went down with smote with a public score of .87026 and private .85833
+> #trying rf with 1000 trees it took 12 min on batch to run, public .88478, private .87374
+> #trying with 750 trees, it took about 9 min to run on batch, fc public .88454, private .87425
+> #changed the threshold for the other char. to .001 with the trees at 850 fc
+> 
+> proc.time()
+    user   system  elapsed 
+1042.886   20.063  835.056 
