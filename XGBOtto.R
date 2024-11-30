@@ -51,9 +51,9 @@ grid_of_tuning_params <- grid_regular(
   levels = 3 #smaller grid
 )
 
-# Parallel Backend
-c1 <- makeCluster(parallel::detectCores() - 2)
-registerDoParallel(c1)
+# # Parallel Backend
+# c1 <- makeCluster(parallel::detectCores() - 2)
+# registerDoParallel(c1)
 
 # Tuning Control
 control <- control_grid(
@@ -66,15 +66,15 @@ control <- control_grid(
 CV_results <- otto_workflow %>%
   tune_grid(resamples = folds,
             grid = grid_of_tuning_params,
-            metrics = metric_set(mn_log_loss),
-            control = control
+            metrics = metric_set(roc_auc),
+            control = control_grid(save_pred = TRUE, verbose = TRUE)
   )
 #control = control_grid(verbose = TRUE)
 # Stop parallel backend after tuning
-stopCluster(c1)
+# stopCluster(c1)
 
 # Find Best Parameters
-bestTune <- select_best(CV_results, metric = "mn_log_loss")
+bestTune <- select_best(CV_results, metric = "roc_auc")
 show_notes(CV_results)
 
 # Finalize and Fit the Best Model

@@ -1,7 +1,6 @@
 library(tidyverse)
 library(vroom)
 library(tidymodels)
-library(doParallel)
 
 otto_sample <- vroom('sampleSubmission.csv')
 #otto_sample
@@ -15,9 +14,7 @@ clean_otto <-otto_train %>%
 #clean_otto
 
 #Random forest classifier
-# Parallel Backend Setup
-cl <- makeCluster(parallel::detectCores() - 2)# Verbose cluster
-registerDoParallel(cl)
+
 #my recipe
 clean_otto <-otto_train %>%
   select(id, target, everything()) # This ensures 'target' is included as the first column
@@ -46,29 +43,28 @@ rf_wf <- workflow() %>%
 
 ## Set up grid of tuning values
 rf_tunegrid <- grid_regular(
-  mtry(range = c(1, 5)),
-  min_n(range = c(1, 5)),
-  levels = 2)
+  mtry(range = c(2,94)),
+  min_n(),
+  levels = 5)
 
 ## Set up K-fold CV
-folds <- vfold_cv(clean_otto, v = 3)
+folds <- vfold_cv(clean_otto, v = 5, repeats = 1)
 
 ## Run the CV
 CV_results <- rf_wf %>%
   tune_grid(
     resamples=folds,
     grid=rf_tunegrid,
-    metrics=metric_set(mn_log_loss),
+    metrics=metric_set(roc_auc),
     control = control_grid(save_pred = TRUE)
   )
 
-# Stop Cluster
-stopCluster(cl)
+
 #started at 9:44p still running at 6:46 am oy ve, it's maybe spinning it's wheels
 #started at 10:10 p ended around 11:11 p 
 ## Find best tuning parameters
 bestTune <- CV_results %>%
-  select_best(metric = "mn_log_loss")
+  select_best(metric = "roc_auc")
 bestTune
 # tibble: 1 × 3
 #mtry min_n .config             
@@ -78,7 +74,7 @@ bestTune
 final_wf <-
   rf_wf %>%
   finalize_workflow(bestTune) %>%
-  fit(data=clean_otto)
+  fit(data=otto_train)
 
 ## Predict
 rf_otto_predictions <- final_wf %>%
@@ -102,3 +98,4 @@ vroom_write(x=rf_otto_kaggle_submission, file="RfOttoPreds.csv", delim=",")
 #with 200 trees, got .84042 around 13 min. on the server
 #with 750 trees took 55 min..59332! closer to .55 :) try 850
 #with 850 trees 2024 seconds (about 34 minutes) 0.59324 prob maxed out trees
+#try with 500 trees and a metric of roc_auc
