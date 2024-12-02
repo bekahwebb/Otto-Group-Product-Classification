@@ -25,32 +25,32 @@ clean_otto <-otto_train %>%
 
 # #EDA
 # #check for missing data
-# anyNA(otto_train)    # TRUE if there are missing values, false
+anyNA(otto_train)    # TRUE if there are missing values, false
 # # 
-# clean_otto %>%
-#   count(target) %>%
-#   ggplot(aes(x = target, y = n, fill = target)) +
-#   geom_bar(stat = "identity") +
-#   theme_minimal()+
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-# 
-# pca_result <- prcomp(otto_train %>% select(starts_with("feat_")), center = TRUE, scale. = TRUE)
-# var_explained <- cumsum(pca_result$sdev^2 / sum(pca_result$sdev^2))
-# qplot(1:length(var_explained), var_explained, geom = "line") +
-#   labs(title = "Cumulative Variance Explained", x = "Principal Component", y = "Variance Explained")
-# 
-# # Summarize basic statistics for features
-# summary(clean_otto %>% select(starts_with("feat")))
-# 
-# # Example PCA to reduce dimensions for clustering
-# pca_result <- prcomp(clean_otto %>% select(starts_with("feat_")), center = TRUE, scale. = TRUE)
-# # Visualize the first two principal components
-# pca_data <- as.data.frame(pca_result$x)
-# pca_data$target <- clean_otto$target
-# ggplot(pca_data, aes(x = PC1, y = PC2, color = target)) +
-#   geom_point(alpha = 0.6) +
-#   labs(title = "PCA of Features with Target Classes")
-# #
+clean_otto %>%
+  count(target) %>%
+  ggplot(aes(x = target, y = n, fill = target)) +
+  geom_bar(stat = "identity") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+pca_result <- prcomp(otto_train %>% select(starts_with("feat_")), center = TRUE, scale. = TRUE)
+var_explained <- cumsum(pca_result$sdev^2 / sum(pca_result$sdev^2))
+qplot(1:length(var_explained), var_explained, geom = "line") +
+  labs(title = "Cumulative Variance Explained", x = "Principal Component", y = "Variance Explained")
+
+# Summarize basic statistics for features
+summary(clean_otto %>% select(starts_with("feat")))
+
+# Example PCA to reduce dimensions for clustering
+pca_result <- prcomp(clean_otto %>% select(starts_with("feat_")), center = TRUE, scale. = TRUE)
+# Visualize the first two principal components
+pca_data <- as.data.frame(pca_result$x)
+pca_data$target <- clean_otto$target
+ggplot(pca_data, aes(x = PC1, y = PC2, color = target)) +
+  geom_point(alpha = 0.6) +
+  labs(title = "PCA of Features with Target Classes")
+#
 
 #Random forest classifier
  # Parallel Backend Setup
